@@ -13,5 +13,5 @@ cargo install cargo-generate
 2. Generate your repo using this one as a template:
 
 ```shell
-cargo generate aQaTL/rscripter
+cargo generate -n my-rust-scripts aQaTL/rscripter 
 ```

@@ -34,58 +34,62 @@ macro_rules! log {
 }
 
 pub fn echo(s: impl Display) {
-    const YELLOW: &str = "\x1b[33m";
-    const RESET: &str = "\x1b[0m";
-    // println!("{YELLOW}{s}{RESET}");
-    println!("{}{}{}", YELLOW, s, RESET);
+	const YELLOW: &str = "\x1b[33m";
+	const RESET: &str = "\x1b[0m";
+	// println!("{YELLOW}{s}{RESET}");
+	println!("{}{}{}", YELLOW, s, RESET);
 }
 
 #[macro_export]
 macro_rules! ls {
-    () => {{
-        crate::ls(".")
-    }};
+	() => {{
+		crate::ls(".")
+	}};
 
-    ($path:expr) => {{
-        crate::ls($path)
-    }};
+	($path:expr) => {{
+		crate::ls($path)
+	}};
 }
 
 pub fn ls(path: impl AsRef<Path>) -> io::Result<()> {
-    for entry in (fs::read_dir(path)?).flatten() {
-        if let Some(filename) = entry.path().file_name() {
-            println!("{}", filename.to_string_lossy());
-        }
-    }
-    Ok(())
+	for entry in (fs::read_dir(path)?).flatten() {
+		if let Some(filename) = entry.path().file_name() {
+			println!("{}", filename.to_string_lossy());
+		}
+	}
+	Ok(())
 }
 
 #[derive(Copy, Clone)]
 pub enum ExecMode {
-    Spawn,
-    WaitForCompletion,
+	Spawn,
+	WaitForCompletion,
 }
 
-pub fn cmd<S: AsRef<OsStr>, const N: usize>(exec_mode: ExecMode, program: S, args: [&dyn AsRef<OsStr>; N]) -> io::Result<Child> {
-    let mut command = Command::new(program);
-    command.args(args.into_iter().map(|arg| arg.as_ref()));
+pub fn cmd<S: AsRef<OsStr>, const N: usize>(
+	exec_mode: ExecMode,
+	program: S,
+	args: [&dyn AsRef<OsStr>; N],
+) -> io::Result<Child> {
+	let mut command = Command::new(program);
+	command.args(args.into_iter().map(|arg| arg.as_ref()));
 
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x08000000;
-        command.creation_flags(CREATE_NO_WINDOW);
-    }
+	#[cfg(windows)]
+	{
+		use std::os::windows::process::CommandExt;
+		const CREATE_NO_WINDOW: u32 = 0x08000000;
+		command.creation_flags(CREATE_NO_WINDOW);
+	}
 
-    let mut child = command.spawn()?;
+	let mut child = command.spawn()?;
 
-    match exec_mode {
-        ExecMode::Spawn => Ok(child),
-        ExecMode::WaitForCompletion => {
-            let _exit_status = child.wait()?;
-            Ok(child)
-        },
-    }
+	match exec_mode {
+		ExecMode::Spawn => Ok(child),
+		ExecMode::WaitForCompletion => {
+			let _exit_status = child.wait()?;
+			Ok(child)
+		}
+	}
 }
 
 #[macro_export]
@@ -142,7 +146,7 @@ macro_rules! cmd_inner {
 }
 
 pub fn path<const N: usize>(segments: [&dyn AsRef<Path>; N]) -> PathBuf {
-    segments.into_iter().map(AsRef::as_ref).collect()
+	segments.into_iter().map(AsRef::as_ref).collect()
 }
 
 #[macro_export]

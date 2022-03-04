@@ -6,6 +6,9 @@ pub use std::env::set_current_dir as cd;
 use std::ffi::OsStr;
 use std::process::{Child, Command};
 
+#[cfg(windows)]
+pub use windows_console::enable_ansi_codes;
+
 #[macro_export]
 macro_rules! log {
     ($($token:tt)*) => {{
@@ -160,4 +163,66 @@ macro_rules! path {
             ]
         )
     }}
+}
+
+#[cfg(windows)]
+mod windows_console {
+	use std::ffi::c_void;
+	use std::io;
+
+	extern "system" {
+		fn GetStdHandle(nStdHandle: u32) -> *mut c_void;
+		fn GetConsoleMode(hConsoleHandle: *mut c_void, lpMode: *mut u32) -> i32;
+		fn SetConsoleMode(hConsoleHandle: *mut c_void, dwMode: u32) -> i32;
+	}
+
+	pub const ENABLE_VIRTUAL_TERMINAL_PROCESSING: u32 = 0x0004;
+	pub const STD_OUTPUT_HANDLE: u32 = -11i32 as u32;
+	pub const STD_ERROR_HANDLE: u32 = -12i32 as u32;
+	pub const INVALID_HANDLE_VALUE: *mut c_void = -1isize as *mut c_void;
+
+	pub fn enable_ansi_codes() {
+		if let Err(err) = try_enable_ansi_codes() {
+			eprintln!("WARN: Failed to enable ansi codes. Caused by: {:?}", err);
+		}
+	}
+
+	fn try_enable_ansi_codes() -> Result<(), io::Error> {
+		unsafe {
+			let std_handle = GetStdHandle(STD_OUTPUT_HANDLE);
+			if std_handle == INVALID_HANDLE_VALUE || std_handle.is_null() {
+				return Err(io::Error::last_os_error());
+			}
+
+			let error_handle = GetStdHandle(STD_ERROR_HANDLE);
+			if error_handle == INVALID_HANDLE_VALUE || error_handle.is_null() {
+				return Err(io::Error::last_os_error());
+			}
+
+			let mut std_lp_mode = 0;
+			let result = GetConsoleMode(std_handle, &mut std_lp_mode as *mut u32);
+			if result == 0 {
+				return Err(io::Error::last_os_error());
+			}
+			let mut error_lp_mode = 0;
+			let result = GetConsoleMode(error_handle, &mut error_lp_mode as *mut u32);
+			if result == 0 {
+				return Err(io::Error::last_os_error());
+			}
+
+			let dw_mode = std_lp_mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+			let result = SetConsoleMode(std_handle, dw_mode);
+			if result == 0 {
+				return Err(io::Error::last_os_error());
+			}
+
+			let dw_mode = error_lp_mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+			let result = SetConsoleMode(error_handle, dw_mode);
+			if result == 0 {
+				return Err(io::Error::last_os_error());
+			}
+
+			Ok(())
+		}
+	}
 }
